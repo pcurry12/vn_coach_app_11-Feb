@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Read Aloud Coach App – v6</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --teal:#00796B;--teal-light:#E0F2F1;--teal-mid:#B2DFDB;--teal-dark:#004D40;
+    --orange:#FB8C00;--orange-light:#FFF3E0;
+    --green:#43A047;--green-light:#E8F5E9;
+    --red:#E53935;--red-light:#FFEBEE;
+    --blue:#1976D2;--blue-light:#E3F2FD;
+    --purple:#7B1FA2;--purple-light:#F3E5F5;
+    --yellow:#F9A825;--yellow-light:#FFFDE7;
+    --g50:#FAFAFA;--g100:#F5F5F5;--g200:#EEEEEE;--g300:#E0E0E0;
+    --g400:#BDBDBD;--g600:#757575;--g800:#424242;--g900:#212121;
+    --white:#FFF;
+    --sh-sm:0 1px 3px rgba(0,0,0,.08);--sh-md:0 4px 12px rgba(0,0,0,.1);--sh-lg:0 8px 24px rgba(0,0,0,.12);
+    --r:12px;--rs:8px;
+    --t:.25s cubic-bezier(.4,0,.2,1);
+    --f:'Nunito',sans-serif;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
+  html{font-size:16px}
+  body{font-family:var(--f);background:#E8E8E8;display:flex;justify-content:center;align-items:flex-start;min-height:100vh;padding:20px;color:var(--g800);-webkit-font-smoothing:antialiased}
+  .phone{width:375px;min-height:750px;max-height:812px;background:var(--white);border-radius:40px;box-shadow:0 20px 60px rgba(0,0,0,.18),0 0 0 2px #333;overflow:hidden;position:relative;display:flex;flex-direction:column}
+  .status-bar{height:44px;background:var(--teal-dark);display:flex;align-items:center;justify-content:space-between;padding:0 24px;color:white;font-size:13px;font-weight:600;flex-shrink:0}
+  .app-header{background:linear-gradient(135deg,var(--teal),var(--teal-dark));padding:14px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+  .back-btn{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.15);border:none;color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:var(--t);flex-shrink:0}
+  .back-btn:hover{background:rgba(255,255,255,.25)}.back-btn.hidden{visibility:hidden}
+  .header-text{flex:1}.header-title{color:white;font-size:17px;font-weight:700}.header-subtitle{color:rgba(255,255,255,.75);font-size:12px;font-weight:500;margin-top:2px}
+  .header-badge{background:rgba(255,255,255,.2);border-radius:20px;padding:4px 10px;color:white;font-size:11px;font-weight:700}
+  .progress-bar{display:flex;align-items:center;justify-content:center;padding:12px 20px;background:var(--g50);flex-shrink:0;border-bottom:1px solid var(--g200)}
+  .step-dot{width:26px;height:26px;border-radius:50%;background:var(--g300);color:var(--g600);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:var(--t)}
+  .step-dot.active{background:var(--teal);color:white;box-shadow:0 0 0 3px rgba(0,121,107,.2)}
+  .step-dot.completed{background:var(--green);color:white}
+  .step-line{width:22px;height:3px;background:var(--g300);border-radius:2px;transition:var(--t)}.step-line.completed{background:var(--green)}
+  .screen-container{flex:1;overflow-y:auto;overflow-x:hidden;scroll-behavior:smooth;-webkit-overflow-scrolling:touch}
+  .screen{display:none;padding:16px;animation:fadeIn .35s ease}.screen.active{display:block}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+  .card{background:var(--white);border-radius:var(--r);box-shadow:var(--sh-sm);border:1px solid var(--g200);margin-bottom:14px;overflow:hidden}
+  .card-header{padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--g200)}
+  .card-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+  .card-header-text{flex:1}.card-header-title{font-size:14px;font-weight:700;color:var(--g900)}.card-header-sub{font-size:11px;color:var(--g600);margin-top:1px}
+  .card-body{padding:14px 16px}
+
+  .indicator-group{margin-bottom:14px}.indicator-group:last-child{margin-bottom:0}
+  .indicator-label{font-size:13px;font-weight:600;color:var(--g800);margin-bottom:8px;line-height:1.35}
+  .indicator-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--teal);color:white;font-size:9px;font-weight:700;margin-right:6px;vertical-align:middle}
+  .rating-options{display:flex;gap:8px}
+  .rating-btn{flex:1;padding:10px 8px;border-radius:var(--rs);border:2px solid var(--g300);background:var(--white);font-size:13px;font-weight:600;cursor:pointer;transition:var(--t);text-align:center;color:var(--g600);display:flex;align-items:center;justify-content:center;gap:6px}
+  .rating-btn:hover{border-color:var(--teal)}
+  .rating-btn.sel-yes{border-color:var(--green);background:var(--green-light);color:#1B5E20}
+  .rating-btn.sel-no{border-color:var(--orange);background:var(--orange-light);color:#E65100}
+
+  /* Focus indicator sticky bubble */
+  .focus-bubble{display:flex;align-items:center;gap:8px;padding:10px 14px;background:linear-gradient(135deg,var(--teal),var(--teal-dark));border-radius:var(--r);margin-bottom:14px;color:white}
+  .focus-bubble-icon{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+  .focus-bubble-text{flex:1;font-size:12px;font-weight:600;line-height:1.35}
+  .focus-bubble-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;opacity:.75}
+
+  .snapshot{border-radius:var(--r);overflow:hidden;margin-bottom:14px;border:1px solid var(--g200);box-shadow:var(--sh-sm)}
+  .snapshot-header{background:linear-gradient(135deg,var(--teal),var(--teal-dark));padding:14px 16px;color:white}
+  .snapshot-teacher{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .snapshot-avatar{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.2);color:white;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .snapshot-name{font-size:15px;font-weight:700}.snapshot-detail{font-size:11px;opacity:.8}
+  .snapshot-stats{display:flex;gap:8px}
+  .snapshot-stat{flex:1;background:rgba(255,255,255,.15);border-radius:var(--rs);padding:10px 8px;text-align:center}
+  .snapshot-stat-num{font-size:20px;font-weight:800;line-height:1}
+  .snapshot-stat-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;opacity:.85;margin-top:3px}
+  .snapshot-body{background:var(--white);padding:14px 16px}
+  .snapshot-section{margin-bottom:12px}.snapshot-section:last-child{margin-bottom:0}
+  .snapshot-section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+  .snapshot-pill{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border-radius:20px;font-size:11px;font-weight:600;margin-right:4px;margin-bottom:4px}
+  .pill-green{background:var(--green-light);color:#1B5E20}
+  .pill-orange{background:var(--orange-light);color:#BF360C}
+  .pill-purple{background:var(--purple-light);color:#4A148C}
+
+  .rce-visual{display:flex;gap:6px;align-items:flex-end;height:80px;margin:8px 0 4px}
+  .rce-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+  .rce-bar-outer{width:100%;height:60px;background:var(--g100);border-radius:6px;position:relative;overflow:hidden;display:flex;align-items:flex-end}
+  .rce-bar-fill{width:100%;border-radius:6px;transition:height .6s ease}
+  .rce-bar-icon{font-size:14px;margin-bottom:2px}
+  .rce-bar-name{font-size:10px;font-weight:700;color:var(--g600);text-transform:uppercase;letter-spacing:.3px}
+
+  .priority-card{border:2px solid var(--g200);border-radius:var(--r);padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:var(--t);position:relative;background:var(--white)}
+  .priority-card:hover{border-color:var(--teal-mid)}
+  .priority-card.selected{border-color:var(--teal);background:var(--teal-light);box-shadow:0 0 0 3px rgba(0,121,107,.12)}
+  .prio-radio{width:22px;height:22px;border-radius:50%;border:2px solid var(--g300);position:absolute;top:14px;right:14px;display:flex;align-items:center;justify-content:center;transition:var(--t)}
+  .priority-card.selected .prio-radio{border-color:var(--teal);background:var(--teal)}
+  .priority-card.selected .prio-radio::after{content:'✓';color:white;font-size:12px;font-weight:700}
+  .prio-tag{display:inline-block;padding:3px 8px;border-radius:12px;font-size:10px;font-weight:700;margin-top:6px}
+  .prio-tag-rec{background:var(--teal-light);color:var(--teal-dark)}
+  .prio-tag-mismatch{background:var(--orange-light);color:#E65100}
+  .prio-tag-agree{background:var(--green-light);color:var(--green)}
+  .prio-title{font-size:13px;font-weight:700;color:var(--g900);padding-right:30px;margin-bottom:3px}
+  .prio-sub{font-size:11px;color:var(--g600);line-height:1.4}
+
+  .sub-ind-item{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--g100);cursor:pointer}
+  .sub-ind-item:last-child{border-bottom:none}
+  .sub-ind-check{width:22px;height:22px;border-radius:6px;border:2px solid var(--g300);display:flex;align-items:center;justify-content:center;font-size:13px;color:transparent;transition:var(--t);flex-shrink:0;margin-top:1px}
+  .sub-ind-item.checked .sub-ind-check{background:var(--orange);border-color:var(--orange);color:white}
+  .sub-ind-text{font-size:12px;color:var(--g800);line-height:1.4}
+
+  .info-box{padding:12px 14px;border-radius:var(--rs);font-size:12px;line-height:1.5;display:flex;gap:8px;align-items:flex-start;margin-bottom:12px}
+  .info-box-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+  .info-box-teal{background:var(--teal-light);color:var(--teal-dark)}
+  .info-box-green{background:var(--green-light);color:#1B5E20}
+
+  .session-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--teal-light);border-radius:var(--rs);margin-bottom:14px}
+  .session-avatar{width:36px;height:36px;border-radius:50%;background:var(--teal);color:white;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .session-name{font-size:13px;font-weight:700;color:var(--teal-dark)}.session-detail{font-size:11px;color:var(--g600);margin-top:1px}
+
+  .script-bubble{background:var(--blue-light);border-radius:var(--r);padding:12px 14px;margin-bottom:10px;border-left:3px solid var(--blue)}
+  .script-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--blue);margin-bottom:4px}
+  .script-text{font-size:13px;color:var(--g800);line-height:1.5;font-style:italic}
+
+  .prompt-card{background:var(--white);border-radius:var(--r);border:1px solid var(--g200);padding:14px;margin-bottom:10px;cursor:pointer;transition:var(--t);position:relative}
+  .prompt-card:hover{border-color:var(--teal)}.prompt-card.expanded{border-color:var(--teal);background:var(--teal-light)}
+  .prompt-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+  .prompt-label.discuss{color:var(--orange)}.prompt-label.book{color:var(--purple)}
+  .prompt-text{font-size:13px;color:var(--g800);line-height:1.45}
+  .prompt-sub{font-size:12px;color:var(--g600);margin-top:8px;line-height:1.5;display:none}
+  .prompt-card.expanded .prompt-sub{display:block}
+  .prompt-expand-icon{position:absolute;top:14px;right:14px;font-size:14px;color:var(--g400);transition:var(--t)}
+  .prompt-card.expanded .prompt-expand-icon{transform:rotate(180deg);color:var(--teal)}
+
+  /* Why-it-matters detail card */
+  .why-detail{background:var(--g50);border-radius:var(--rs);padding:12px 14px;margin-bottom:10px;border-left:3px solid var(--orange)}
+  .why-detail-label{font-size:10px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+  .why-detail-text{font-size:12px;color:var(--g800);line-height:1.55}
+
+  /* Conversation plan */
+  .convo-step{border-radius:var(--r);margin-bottom:12px;overflow:hidden;border:1px solid var(--g200);box-shadow:var(--sh-sm)}
+  .convo-step-header{display:flex;align-items:center;gap:10px;padding:12px 14px}
+  .convo-step-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;flex-shrink:0}
+  .convo-step-title{font-size:13px;font-weight:700;color:var(--g900);flex:1}
+  .convo-step-body{padding:0 14px 14px;font-size:12px;color:var(--g600);line-height:1.55}
+  .convo-note{background:var(--g50);border-radius:var(--rs);padding:10px 12px;margin-top:8px;font-size:12px;line-height:1.5;border-left:3px solid var(--orange)}
+  .convo-note-label{font-size:10px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+  .convo-script{background:var(--blue-light);border-radius:var(--rs);padding:10px 12px;margin-top:8px;font-size:12px;line-height:1.5;font-style:italic;color:var(--g800);border-left:3px solid var(--blue)}
+  .convo-tip{background:var(--purple-light);border-radius:var(--rs);padding:10px 12px;margin-top:8px;font-size:12px;line-height:1.5;color:var(--g800);border-left:3px solid var(--purple);cursor:pointer;position:relative}
+  .convo-tip-label{font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+  .convo-tip-expand{display:none;margin-top:6px;padding-top:6px;border-top:1px solid rgba(123,31,162,.15)}
+  .convo-tip.open .convo-tip-expand{display:block}
+  .convo-tip-toggle{position:absolute;top:10px;right:12px;font-size:12px;color:var(--purple);transition:var(--t)}
+  .convo-tip.open .convo-tip-toggle{transform:rotate(180deg)}
+  .tip-plain{background:var(--white);border-radius:var(--rs);padding:10px 14px;margin-bottom:8px;border:1px solid var(--g200);border-left:3px solid var(--orange)}
+  .tip-plain-label{font-size:10px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+  .tip-plain-text{font-size:12px;color:var(--g800);line-height:1.5}
+  .challenge-card{display:flex;gap:0;margin-bottom:6px;border-radius:var(--rs);overflow:hidden;border:1px solid var(--g200);font-size:11px;line-height:1.4}
+  .challenge-q{background:#E8EAF6;padding:8px 10px;flex:1;color:#283593;font-weight:600;font-style:italic}
+  .challenge-a{background:var(--white);padding:8px 10px;flex:1.2;color:var(--g800)}
+
+  .checklist-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--g100);cursor:pointer}
+  .checklist-item:last-child{border-bottom:none}
+  .checklist-check{width:22px;height:22px;border-radius:6px;border:2px solid var(--g300);display:flex;align-items:center;justify-content:center;font-size:13px;color:transparent;transition:var(--t);flex-shrink:0;margin-top:1px}
+  .checklist-item.checked .checklist-check{background:var(--green);border-color:var(--green);color:white}
+  .checklist-text{font-size:13px;color:var(--g800);line-height:1.4}
+
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 24px;border-radius:var(--r);font-family:var(--f);font-size:15px;font-weight:700;cursor:pointer;transition:var(--t);border:none;width:100%}
+  .btn-primary{background:linear-gradient(135deg,var(--teal),var(--teal-dark));color:white;box-shadow:0 4px 12px rgba(0,121,107,.25)}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,121,107,.35)}
+  .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+
+  .sticky-footer{padding:12px 16px;background:var(--white);border-top:1px solid var(--g200);flex-shrink:0}
+  .notes-area{width:100%;border:2px solid var(--g300);border-radius:var(--rs);padding:10px 12px;font-family:var(--f);font-size:13px;resize:vertical;min-height:60px;transition:var(--t);color:var(--g800);line-height:1.5}
+  .notes-area:focus{border-color:var(--teal);outline:none;box-shadow:0 0 0 3px rgba(0,121,107,.1)}
+  .notes-area::placeholder{color:var(--g400)}
+  .divider{height:1px;background:var(--g200);margin:14px 0}
+  .section-title{font-size:14px;font-weight:700;color:var(--g900);margin-bottom:8px}
+  .section-sub{font-size:12px;color:var(--g600);margin-bottom:12px;line-height:1.4}
+  .tag{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600}
+  .tag-strength{background:var(--green-light);color:var(--green)}
+  .tag-growth{background:var(--orange-light);color:#E65100}
+  .tag-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .video-link{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--blue-light);border-radius:var(--rs);margin-bottom:10px;cursor:pointer;border:1px solid rgba(25,118,210,.15)}
+
+  .likert-face{flex:1;text-align:center;padding:10px 4px;border-radius:var(--rs);cursor:pointer;transition:var(--t);border:2px solid transparent}
+  .likert-face:hover{background:var(--g50)}
+  .likert-face.selected{background:var(--teal-light);border-color:var(--teal)}
+  .likert-emoji{font-size:28px;line-height:1}
+  .likert-label{font-size:10px;font-weight:600;color:var(--g600);margin-top:4px}
+  .likert-face.selected .likert-label{color:var(--teal-dark);font-weight:700}
+
+  .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--g900);color:white;padding:12px 24px;border-radius:30px;font-size:13px;font-weight:600;box-shadow:var(--sh-lg);z-index:999;opacity:0;transition:all .4s cubic-bezier(.4,0,.2,1);white-space:nowrap}
+  .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+  .loading-dots{display:flex;gap:6px;justify-content:center;padding:20px}
+  .loading-dots span{width:10px;height:10px;border-radius:50%;background:white;animation:bounce .6s infinite alternate}
+  .loading-dots span:nth-child(2){animation-delay:.2s}.loading-dots span:nth-child(3){animation-delay:.4s}
+  @keyframes bounce{to{transform:translateY(-8px);opacity:.4}}
+  @keyframes checkPop{0%{transform:scale(0)}60%{transform:scale(1.2)}100%{transform:scale(1)}}
+  .check-pop{animation:checkPop .4s ease}
+  .screen-container::-webkit-scrollbar{width:4px}
+  .screen-container::-webkit-scrollbar-thumb{background:var(--g300);border-radius:4px}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="status-bar"><span style="font-weight:700">9:41</span><div style="display:flex;gap:6px;align-items:center"><span style="font-size:12px">📶</span><span style="font-size:12px">🔋</span></div></div>
+  <div class="app-header">
+    <button class="back-btn hidden" id="backBtn" onclick="goBack()">‹</button>
+    <div class="header-text"><div class="header-title" id="headerTitle">Coach Observation</div><div class="header-subtitle" id="headerSubtitle">Rate each indicator</div></div>
+    <div class="header-badge">COACH</div>
+  </div>
+  <div class="progress-bar">
+    <div class="step-dot active" id="dot1">1</div><div class="step-line" id="line1"></div>
+    <div class="step-dot" id="dot2">2</div><div class="step-line" id="line2"></div>
+    <div class="step-dot" id="dot3">3</div><div class="step-line" id="line3"></div>
+    <div class="step-dot" id="dot4">4</div><div class="step-line" id="line4"></div>
+    <div class="step-dot" id="dot5">5</div><div class="step-line" id="line5"></div>
+    <div class="step-dot" id="dot6">6</div>
+  </div>
+
+  <div class="screen-container">
+
+    <!-- ══════ SCREEN 1: Coach Observation — 13 Indicators ══════ -->
+    <div class="screen active" id="screen1">
+      <div class="session-bar"><div class="session-avatar">NL</div><div style="flex:1"><div class="session-name">Ms. Nguyễn Thị Lan</div><div class="session-detail">Grade 3 · Hoa Sen Primary · "The Clever Rabbit"</div></div></div>
+
+      <!-- Before Reading -->
+      <div class="card"><div class="card-header"><div class="card-icon" style="background:var(--blue-light);color:var(--blue)">📖</div><div class="card-header-text"><div class="card-header-title">Before Reading</div></div></div><div class="card-body">
+        <div class="indicator-group"><div class="indicator-label"><span class="indicator-num">1</span>Engaged children before reading to prepare them for the book</div><div class="rating-options"><button class="rating-btn" onclick="rate(this,1,'yes')">👍 Yes</button><button class="rating-btn" onclick="rate(this,1,'no')">🌱 No / Partially</button></div></div>
+      </div></div>
+
+      <!-- During Reading -->
+      <div class="card"><div class="card-header"><div class="card-icon" style="background:var(--green-light);color:var(--green)">🗣️</div><div class="card-header-text"><div class="card-header-title">During Reading</div></div></div><div class="card-body">
+        <div class="indicator-group"><div class="indicator-label"><span class="indicator-num">2</span>Reads aloud clearly and at an appropriate pace</div><div class="rating-options"><button class="rating-btn" onclick="rate(this,2,'yes')">👍 Yes</button><button class="rating-btn" onclick="rate(this,2,'no')">🌱 No / Partially</button></div></div>
+        <div class="indicator-group"><div class="indicator-label"><span class="indicator-num">3</span>Reads aloud expressively, using eye contact, gestures, body language</div><div class="rating-options"><button class="rating-btn" onclick="rate(this,3,'yes')">👍 Yes</button><button class="rating-btn" onclick="rate(this,3,'no')">🌱 No / Partially</button></div></div>
+        <div class="indicator-group"><div class="indicator-label"><span class="indicator-num">4</span>Used short interactions during reading to support comprehension</div><div class="rating-options"><button class="rating-btn" onclick="rate(this,4,'yes')">👍 Yes</button><button class="rating-btn" onclick="rate(this,4,'no')">🌱 No / Partially</button></div></div>
+        <div class="indicator-group"><div class="indicator-label"><span class="indicator-num">5</span>Kept interactions short so the story flowed smoothly</div><div class="rating-options"><button class="rating-btn" onclick="rate(this,5,'yes')">👍 Yes</button><button class="rating-btn" onclick="rate(this,5,'no')">🌱 No / Partially</button></div></div>
+      </div></div>
+
+      <!-- After Reading -->
+      <div class="card"><div class="card-header"><div class="card-icon" style="background:var(--purple-light);color:var(--purple)">💬</div><div class="card-header-text"><div class="card-header-title">After Reading</div></div></div><div class="card-body">
+        <div class="indicator-group"><div class="indicator-label"><span class="indicator-num">6</span>Used questions/activities after reading to support understanding</div><div class="rating-options"><button class="rating-btn" onclick="rate(this,6,'yes')">👍 Yes</button><button class="rating-btn" onclick="rate(this,6,'no')">🌱 No / Partially</button></div></div>
+      </div></div>
+
+      <!-- Overall -->
+      <div class="card"><div class="card-header"><div class="card-icon" style="background:var(--yellow-light);color:var(--yellow)">🌟</div><div class="card-header-text"><div class="card-header-title">Overall</div></div></div><div class="card-body">
+        <div class="indicator-group"><div class="indicator-label"><span class="indicator-num">7</span>Quickly settled the class and maintained a positive environment</div><div class="rating-options"><button class="rating-btn" onclick="rate(this,7,'yes')">👍 Yes</button><button class="rating-btn" onclick="rate(this,7,'no')">🌱 No / Partially</button></div></div>
+        <div class="indicator-group"><div class="indicator-label"><span class="indicator-num">8</span>Made sure all children could see the book and pictures</div><div class="rating-options"><button class="rating-btn" onclick="rate(this,8,'yes')">👍 Yes</button><button class="rating-btn" onclick="rate(this,8,'no')">🌱 No / Partially</button></div></div>
+        <div class="indicator-group"><div class="indicator-label"><span class="indicator-num">9</span>Encourages and maintains student attention and positive environment throughout</div><div class="rating-options"><button class="rating-btn" onclick="rate(this,9,'yes')">👍 Yes</button><button class="rating-btn" onclick="rate(this,9,'no')">🌱 No / Partially</button></div></div>
+        <div class="indicator-group"><div class="indicator-label"><span class="indicator-num">10</span>Gives students adequate thinking time before inviting responses</div><div class="rating-options"><button class="rating-btn" onclick="rate(this,10,'yes')">👍 Yes</button><button class="rating-btn" onclick="rate(this,10,'no')">🌱 No / Partially</button></div></div>
+        <div class="indicator-group"><div class="indicator-label"><span class="indicator-num">11</span>Includes open-ended questions, valuing all student ideas without judgment</div><div class="rating-options"><button class="rating-btn" onclick="rate(this,11,'yes')">👍 Yes</button><button class="rating-btn" onclick="rate(this,11,'no')">🌱 No / Partially</button></div></div>
+        <div class="indicator-group"><div class="indicator-label"><span class="indicator-num">12</span>Gives all children opportunities to participate</div><div class="rating-options"><button class="rating-btn" onclick="rate(this,12,'yes')">👍 Yes</button><button class="rating-btn" onclick="rate(this,12,'no')">🌱 No / Partially</button></div></div>
+        <div class="indicator-group"><div class="indicator-label"><span class="indicator-num">13</span>Skillfully used different instructional practices to achieve lesson goals</div><div class="rating-options"><button class="rating-btn" onclick="rate(this,13,'yes')">👍 Yes</button><button class="rating-btn" onclick="rate(this,13,'no')">🌱 No / Partially</button></div></div>
+      </div></div>
+
+      <!-- R/C/E question types -->
+      <div class="card"><div class="card-header"><div class="card-icon" style="background:var(--blue-light);color:var(--blue)">📊</div><div class="card-header-text"><div class="card-header-title">Question Types Observed</div><div class="card-header-sub">For indicator #6 — select all observed</div></div></div><div class="card-body">
+        <div style="display:flex;gap:6px"><button class="rating-btn" style="font-size:11px;padding:8px 4px" onclick="rceToggle(this,'R')">Recall</button><button class="rating-btn" style="font-size:11px;padding:8px 4px" onclick="rceToggle(this,'C')">Connect</button><button class="rating-btn" style="font-size:11px;padding:8px 4px" onclick="rceToggle(this,'E')">Evaluate</button></div>
+      </div></div>
+    </div>
+
+    <!-- ══════ SCREEN 2: Snapshot + Pick Focus ══════ -->
+    <div class="screen" id="screen2">
+      <div class="snapshot">
+        <div class="snapshot-header">
+          <div class="snapshot-teacher"><div class="snapshot-avatar">NL</div><div><div class="snapshot-name">Ms. Nguyễn Thị Lan</div><div class="snapshot-detail">Grade 3 · Hoa Sen Primary · Visit #3</div></div></div>
+          <div class="snapshot-stats">
+            <div class="snapshot-stat"><div class="snapshot-stat-num">3</div><div class="snapshot-stat-label">Self-evals</div></div>
+            <div class="snapshot-stat"><div class="snapshot-stat-num">1</div><div class="snapshot-stat-label">Video evals</div></div>
+            <div class="snapshot-stat"><div class="snapshot-stat-num">3</div><div class="snapshot-stat-label">Coach visits</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;background:rgba(249,168,37,.25);border-radius:6px;padding:6px 10px;margin-top:8px;font-size:10px;color:#F57F17;font-weight:600">
+            <span>⚠️</span> Low app usage — encourage Ms. Lan to self-evaluate after each read aloud
+          </div>
+        </div>
+        <div class="snapshot-body" id="snapshotBody">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="section-title">Select Your Focus</div>
+      <div class="section-sub">Choose one area to discuss with Ms. Lan. Ordered by priority.</div>
+      <div id="focusCards">
+        <!-- Populated dynamically from "still working" indicators -->
+      </div>
+    </div>
+
+    <!-- ══════ SCREEN 3: Sub-indicators ══════ -->
+    <div class="screen" id="screen3">
+      <div class="focus-bubble" id="focusBubble3"><div class="focus-bubble-icon">🎯</div><div class="focus-bubble-text"><div class="focus-bubble-label">Your focus</div><span id="fb3_text">2b. Reads aloud expressively</span></div></div>
+      <div class="info-box info-box-teal"><span class="info-box-icon">📌</span><div id="s3_header">You marked <strong>"Still Working."</strong> What did you observe? Select up to 2.</div></div>
+      <div class="card"><div class="card-body" id="s3_sublist"></div></div>
+      <div id="s3_other_box" style="display:none;margin-top:-6px;">
+        <div class="card"><div class="card-body">
+          <div style="font-size:12px;font-weight:700;color:var(--orange);margin-bottom:6px">Please describe what got in the way <span style="color:var(--red)">*</span></div>
+          <textarea class="notes-area" id="s3_other_text" placeholder="e.g., Teacher seemed rushed and skipped over dialogue..." style="min-height:50px"></textarea>
+        </div></div>
+      </div>
+    </div>
+
+    <!-- ══════ SCREEN 4: Why This Matters ══════ -->
+    <div class="screen" id="screen4">
+      <div class="focus-bubble" id="focusBubble4"><div class="focus-bubble-icon">🎯</div><div class="focus-bubble-text"><div class="focus-bubble-label">Your focus</div><span id="fb4_text">2b. Reads aloud expressively</span></div></div>
+
+      <div class="card" style="border-left:3px solid var(--teal)">
+        <div class="card-header"><div class="card-icon" style="background:var(--teal-light);color:var(--teal)">💡</div><div class="card-header-text"><div class="card-header-title">Why This Matters</div></div></div>
+        <div class="card-body" id="s4_why" style="font-size:13px;line-height:1.6"></div>
+      </div>
+
+      <div class="section-title">What You Observed</div>
+      <div class="section-sub">Why each observation matters for students.</div>
+      <div id="s4_details"></div>
+
+      <div class="video-link"><span style="font-size:20px">📹</span><div style="font-size:12px;font-weight:600;color:var(--blue)" id="s4_video">Video: Reading with expression — watch together with the teacher</div></div>
+    </div>
+
+    <!-- ══════ SCREEN 5: Conversation Plan (merged with explore) ══════ -->
+    <div class="screen" id="screen5">
+      <div class="focus-bubble" id="focusBubble5"><div class="focus-bubble-icon">🎯</div><div class="focus-bubble-text"><div class="focus-bubble-label">Your focus</div><span id="fb5_text">2b. Reads aloud expressively</span></div></div>
+      <div class="info-box info-box-teal"><span class="info-box-icon">📋</span><div>Your conversation plan for Ms. Lan.</div></div>
+
+      <!-- Step 1: Positive -->
+      <div class="convo-step" style="border-left:4px solid var(--green)">
+        <div class="convo-step-header"><div class="convo-step-num" style="background:var(--green)">1</div><div class="convo-step-title">Start with a positive</div></div>
+        <div class="convo-step-body" id="s5_positive_start"></div>
+      </div>
+
+      <!-- Step 2: Discuss — integrated with explore -->
+      <div class="convo-step" style="border-left:4px solid var(--orange)">
+        <div class="convo-step-header"><div class="convo-step-num" style="background:var(--orange)">2</div><div class="convo-step-title" id="s5_title">Discuss: Reading Expressively</div></div>
+        <div class="convo-step-body">
+          <div style="font-size:12px;font-weight:700;color:var(--teal);margin-bottom:6px">Explain why it matters</div>
+          <div style="margin-bottom:10px" id="s5_whyshort">Expressive reading helps students understand the story more deeply and keeps them engaged.</div>
+
+          <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:6px">Ask & explore</div>
+          <div style="background:var(--blue-light);border-radius:16px 16px 16px 4px;padding:10px 14px;font-size:12px;font-style:italic;color:#0D47A1;line-height:1.5;margin-bottom:10px" id="s5_ask">"How did you feel about bringing the story to life through your voice and expression?"</div>
+
+          <div style="font-size:12px;font-weight:700;color:var(--purple);margin:10px 0 6px">Tips for what you observed</div>
+          <div id="s5_dynamic_tips"></div>
+
+          <div style="font-size:12px;font-weight:700;color:#5C6BC0;margin:12px 0 6px">💬 Common challenges</div>
+          <div id="s5_challenges"></div>
+
+          <div class="convo-tip" onclick="this.classList.toggle('open')" style="border-left-color:var(--green);background:var(--green-light)">
+            <span class="convo-tip-toggle" style="color:var(--green)">▾</span>
+            <div class="convo-tip-label" style="color:#1B5E20">📖 Tips for "The Clever Rabbit"</div>
+            <div style="font-size:12px;color:#2E7D32">Tap for book-specific ideas</div>
+            <div class="convo-tip-expand" id="s5_booktips"></div>
+          </div>
+
+          <div style="font-size:12px;font-weight:700;color:var(--green);margin:10px 0 4px">Agree on an action</div>
+          <div style="font-size:12px;color:var(--g600)">Ask: "What's one thing you'd like to try differently next time?"</div>
+        </div>
+      </div>
+
+      <!-- Step 3: Positive -->
+      <div class="convo-step" style="border-left:4px solid var(--green)">
+        <div class="convo-step-header"><div class="convo-step-num" style="background:var(--green)">3</div><div class="convo-step-title">End with a positive</div></div>
+        <div class="convo-step-body" id="s5_positive_end"></div>
+      </div>
+
+      <div style="text-align:center;padding:14px 0"><div style="font-size:32px;margin-bottom:6px">🗣️</div><div style="font-size:13px;font-weight:700;color:var(--g900)">Go have your conversation!</div><div style="font-size:12px;color:var(--g600)">Come back when you're done.</div></div>
+    </div>
+
+    <!-- ══════ SCREEN 6: Record & Close ══════ -->
+    <div class="screen" id="screen6">
+      <div class="focus-bubble" id="focusBubble6"><div class="focus-bubble-icon">🎯</div><div class="focus-bubble-text"><div class="focus-bubble-label">Your focus</div><span id="fb6_text">2b. Reads aloud expressively</span></div></div>
+      <div class="info-box info-box-green"><span class="info-box-icon">👋</span><div><strong>Welcome back!</strong> How did it go?</div></div>
+
+      <!-- Smiley Likert -->
+      <div class="card">
+        <div class="card-header"><div class="card-icon" style="background:var(--teal-light);color:var(--teal)">💬</div><div class="card-header-text"><div class="card-header-title">How did the conversation go?</div></div></div>
+        <div class="card-body" style="padding:14px 16px">
+          <div style="display:flex;justify-content:space-between;gap:4px" id="likertRow">
+            <div class="likert-face" onclick="selectLikert(this,1)" data-val="1"><div class="likert-emoji">😟</div><div class="likert-label">Tough</div></div>
+            <div class="likert-face" onclick="selectLikert(this,2)" data-val="2"><div class="likert-emoji">😐</div><div class="likert-label">OK</div></div>
+            <div class="likert-face" onclick="selectLikert(this,3)" data-val="3"><div class="likert-emoji">🙂</div><div class="likert-label">Good</div></div>
+            <div class="likert-face" onclick="selectLikert(this,4)" data-val="4"><div class="likert-emoji">😊</div><div class="likert-label">Great</div></div>
+            <div class="likert-face" onclick="selectLikert(this,5)" data-val="5"><div class="likert-emoji">🤩</div><div class="likert-label">Amazing</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Single commitment box with tips as options -->
+      <div class="card">
+        <div class="card-header"><div class="card-icon" style="background:var(--purple-light);color:var(--purple)">🎯</div><div class="card-header-text"><div class="card-header-title">Teacher's Commitment</div><div class="card-header-sub">What did Ms. Lan agree to try next time?</div></div></div>
+        <div class="card-body" id="s6_commit"></div>
+      </div>
+
+      <div class="section-title" style="margin-top:12px">Notes</div>
+      <textarea class="notes-area" placeholder="Anything else from the conversation..."></textarea>
+    </div>
+
+    <!-- CONFIRMATION -->
+    <div class="screen" id="screen7">
+      <div style="text-align:center;padding:30px 0 20px">
+        <div style="width:72px;height:72px;border-radius:50%;background:var(--green-light);display:inline-flex;align-items:center;justify-content:center;font-size:36px;margin-bottom:14px" class="check-pop">✅</div>
+        <div style="font-size:18px;font-weight:800;color:var(--g900);margin-bottom:6px">Done!</div>
+        <div style="font-size:14px;color:var(--g600);line-height:1.5">Saved for <strong style="color:var(--teal-dark)">Ms. Nguyễn Thị Lan</strong>.</div>
+        <div style="font-size:13px;color:var(--g600);margin-top:12px">See you next time! 👋</div>
+      </div>
+      <div class="card"><div class="card-header"><div class="card-icon" style="background:var(--teal-light);color:var(--teal)">📋</div><div class="card-header-text"><div class="card-header-title">Session Summary</div><div class="card-header-sub">Visit #3 · Feb 11, 2026</div></div></div>
+        <div class="card-body">
+          <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:6px">💪 Strengths</div>
+          <div class="tag-row" style="margin-bottom:12px"><span class="tag tag-strength">Warm atmosphere</span><span class="tag tag-strength">Clear book intro</span></div>
+          <div style="font-size:12px;font-weight:700;color:var(--orange);margin-bottom:6px">🎯 Focus</div>
+          <div class="tag-row" style="margin-bottom:12px"><span class="tag tag-growth" id="s7_focus">Expressive reading</span></div>
+          <div style="font-size:12px;font-weight:700;color:var(--purple);margin-bottom:6px">🚀 Commitment</div>
+          <div style="font-size:12px;color:var(--g800);line-height:1.6" id="s7_commit">• Preview book & mark 2–3 voice-change spots</div>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="showToast('Returning to dashboard...')">Done →</button>
+    </div>
+  </div>
+
+  <div class="sticky-footer" id="stickyFooter"><button class="btn btn-primary" id="nextBtn" onclick="nextScreen()">Continue →</button></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let currentScreen=1,totalScreens=7;
+let ratings={},rce={R:false,C:false,E:false};
+let selectedPriority=null,selectedSubInds=[],otherText='';
+let selectedLikert=0;
+
+// Full indicator metadata: id, code, short name, description, focusKey (if it can be a focus)
+const indicators=[
+  {id:2, num:2, priority:1.1, section:"During Reading", short:"Clear pace & reading", desc:"Reads aloud clearly and at an appropriate pace"},
+  {id:8, num:8, priority:1.2, section:"Overall", short:"Book visibility", desc:"Made sure all children could see the book and pictures"},
+  {id:1, num:1, priority:1.3, section:"Before Reading", short:"Before-reading engagement", desc:"Engaged children before reading to prepare them"},
+  {id:6, num:6, priority:1.4, section:"After Reading", short:"After-reading activities", desc:"Used questions/activities after reading"},
+  {id:3, num:3, priority:2.1, section:"During Reading", short:"Expressive reading", desc:"Reads expressively with eye contact, gestures, body language"},
+  {id:12,num:12,priority:2.2, section:"Overall", short:"Participation for all", desc:"Gives all children opportunities to participate"},
+  {id:9, num:9, priority:2.3, section:"Overall", short:"Student attention", desc:"Maintains student attention and positive environment"},
+  {id:10,num:10,priority:2.4, section:"Overall", short:"Think time", desc:"Gives students adequate thinking time"},
+  {id:7, num:7, priority:2.5, section:"Overall", short:"Positive environment", desc:"Settled the class and maintained positive environment"},
+  {id:4, num:4, priority:2.6, section:"During Reading", short:"Reading interactions", desc:"Used short interactions during reading"},
+  {id:5, num:5, priority:3.1, section:"During Reading", short:"Story flow", desc:"Kept interactions short so story flowed smoothly"},
+  {id:11,num:11,priority:3.2, section:"Overall", short:"Open-ended questions", desc:"Includes open-ended questions, valuing all ideas"},
+  {id:13,num:13,priority:3.3, section:"Overall", short:"Instructional skill", desc:"Skillfully used instructional practices for lesson goals"}
+];
+
+// Suggested phrases for positives (keyed by indicator id)
+const positivePhrases={
+  1:"Great job preparing students before reading \u2014 they were ready and engaged.",
+  2:"Your reading pace was clear and easy for students to follow.",
+  3:"Your expressive reading really brought the story to life for students.",
+  4:"The way you supported comprehension during reading was effective.",
+  5:"Your interactions were well-timed and didn\u2019t break the story flow.",
+  6:"The discussion and activities after reading showed strong facilitation.",
+  7:"You created a warm, positive environment and settled students quickly.",
+  8:"Great job making sure every student could see the book and pictures.",
+  9:"Students were attentive throughout \u2014 that\u2019s a sign of strong engagement.",
+  10:"You gave students time to think, which encourages deeper responses.",
+  11:"The questions you asked really pushed students to think deeply.",
+  12:"You did a great job making sure all children could participate.",
+  13:"Your instructional choices were well-suited to the lesson goals."
+};
+
+const subIndicators={
+  1:["The activity or questions weren't clear","Didn't connect to the book","Few chances for children to participate","Book was not introduced","Skipped this step","Other"],
+  2:["Teacher's voice was unclear or difficult to hear","Read too quickly","Read too slowly","Volume or pace needed adjusting","Other"],
+  3:["Teacher read in a flat or monotone voice","Limited or no eye contact with students","Few or no gestures or facial expressions","Non-verbal communication did not support the story","Voice did not match the story's mood or events","Other"],
+  4:["Skipped this step","The questions or talk didn't match the story","The questions or talk did not help students understand","Other"],
+  5:["Too many pauses","Teacher talked too long","Students lost focus","Repeated instructions or questions too much","Hard to get back to story","Other"],
+  6:["Could connect better to story","Didn't help understanding","Students seem confused","Skipped this step","Other"],
+  7:["Class took too long to settle","Some students remained off-task","Seating was tricky","Hard to manage noise","Hard to keep positive","Other"],
+  8:["Some students could not see well","Didn't show all pictures to all students","Seating made it hard","Other"],
+  9:["Instructions unclear","Could ask more questions","Classroom management can be improved","Could pay more attention to students","Could redirect sooner","Used a tone that discouraged participation","Appeared stressed or impatient","Other"],
+  10:["Could give more time for thinking","Teacher answered his/her own questions","Only the fastest students participated","Teacher rushed the discussion or skipped responses","Other"],
+  11:["Limited or no open-ended questions","Limited or no follow-up questions","Favored certain answers over others","Student responses were judged as right or wrong","Teacher answered her/his own questions","Other"],
+  12:["Only a few spoke","Quiet students were less involved","Moved too quickly","Could be more supportive","Could be more open to different ideas","Could do more to check understanding","Other"],
+  13:["Goals not fully met","Activities did not clearly support goals or story","Some parts were rushed","Some parts took too long","Flow wasn't smooth","Other"]
+};
+
+const subIndDetails={
+  "The activity or questions weren't clear":{why:"When pre-reading activities are unclear, students can't engage meaningfully.",tipLabel:"Unclear activity",tip:"Plan 1–2 simple, focused questions before reading. Practice saying them aloud.",tipShort:"Plan 1–2 clear pre-reading questions in advance",tags:["unclear"]},
+  "Didn't connect to the book":{why:"Pre-reading works best when it links directly to the story.",tipLabel:"No connection to book",tip:"Identify one key theme from the book and build your warm-up around it.",tipShort:"Build warm-up around one key theme from the book",tags:["connect-book"]},
+  "Few chances for children to participate":{why:"If only the teacher talks before reading, students are passive observers.",tipLabel:"Limited participation",tip:"Use turn-and-talk so every child responds, not just volunteers.",tipShort:"Use turn-and-talk so every child can respond",tags:["participate"]},
+  "Book was not introduced":{why:"Introducing title, author, and cover helps students build expectations.",tipLabel:"Book not introduced",tip:"Show the cover, read the title/author, ask 'What do you think this is about?'",tipShort:"Show cover, read title/author, ask one prediction question",tags:["intro"]},
+  "Skipped this step":{why:"Skipping this step means students enter cold, making comprehension harder.",tipLabel:"Step skipped",tip:"Even 2 minutes of this activity significantly improves the lesson.",tipShort:"Spend at least 2 minutes on this step",tags:["skipped"]},
+  "Teacher's voice was unclear or difficult to hear":{why:"If students can't hear, they miss key content and lose engagement.",tipLabel:"Voice unclear",tip:"Project to the back of the room. Ask students at the back if they can hear.",tipShort:"Project voice to back of room & check students can hear",tags:["voice","volume"]},
+  "Read too quickly":{why:"Reading too fast prevents students from processing the story.",tipLabel:"Read too quickly",tip:"Pause at full stops and longer at paragraph breaks. Let pictures do work too.",tipShort:"Pause at full stops and let pictures support the story",tags:["pace","fast"]},
+  "Read too slowly":{why:"A pace that's too slow causes students to lose interest and disengage.",tipLabel:"Read too slowly",tip:"Match pace to energy. Action scenes faster; emotional moments slower.",tipShort:"Match reading pace to story energy",tags:["pace","slow"]},
+  "Volume or pace needed adjusting":{why:"Consistent volume and pace reduces the story to monotone delivery.",tipLabel:"Volume/pace adjustment",tip:"Use volume and pace as storytelling tools. Whisper for suspense, speed up for excitement.",tipShort:"Use volume and pace changes as storytelling tools",tags:["pace","volume"]},
+  "Teacher read in a flat or monotone voice":{why:"Without variation in tone, students lose a key channel for understanding emotion.",tipLabel:"Flat/monotone voice",tip:"Mark 2–3 places where the mood shifts — then change volume or speed.",tipShort:"Mark 2–3 mood-shift moments to vary voice",tags:["monotone","mood"]},
+  "Limited or no eye contact with students":{why:"Eye contact tells students the teacher is reading to them. It builds connection.",tipLabel:"No eye contact",tip:"Hold the book to one side so you can glance up between sentences.",tipShort:"Hold book to one side & glance up at end of each page",tags:["eye-contact"]},
+  "Few or no gestures or facial expressions":{why:"Young readers rely on visual cues. Gestures bridge words and understanding.",tipLabel:"No gestures",tip:"Start with facial expressions: look surprised, scared, happy at key moments.",tipShort:"Use facial expressions at key story moments",tags:["gestures"]},
+  "Non-verbal communication did not support the story":{why:"When gestures don't match the story, they create confusion.",tipLabel:"Mismatched non-verbal",tip:"Choose 2–3 key moments and plan a gesture for each. Less is more.",tipShort:"Plan specific gestures for 2–3 key story moments",tags:["non-verbal"]},
+  "Voice did not match the story's mood or events":{why:"A mismatched tone creates confusion — students learn mood from how adults read.",tipLabel:"Voice didn't match mood",tip:"Before reading, identify the emotional arc. Plan voice shifts at key moments.",tipShort:"Identify emotional arc & plan voice shifts before reading",tags:["mood","voice-match"]},
+  "The questions or talk didn't match the story":{why:"Off-topic interactions confuse students and break their connection to the narrative.",tipLabel:"Interactions off-topic",tip:"Prepare 2–3 interaction points connected to key story events or vocabulary.",tipShort:"Pre-plan 2–3 interaction points tied to key story events",tags:["off-topic"]},
+  "The questions or talk did not help students understand":{why:"Interactions should deepen comprehension. If not, they become interruptions.",tipLabel:"Interactions not helpful",tip:"Focus on vocabulary, predictions, or connecting to what just happened.",tipShort:"Focus interactions on vocabulary, predictions, or story connections",tags:["not-helpful"]},
+  "Too many pauses":{why:"Frequent pauses fragment the story, making it hard to follow.",tipLabel:"Too many pauses",tip:"Limit to 2–3 planned interaction points per book.",tipShort:"Limit to 2–3 planned interaction points per book",tags:["pauses"]},
+  "Teacher talked too long":{why:"Extended teacher talk disrupts the story's momentum.",tipLabel:"Talked too long",tip:"Keep interactions to 30 seconds or less.",tipShort:"Keep reading interactions under 30 seconds each",tags:["talked-long"]},
+  "Students lost focus":{why:"When students lose focus, they miss key content.",tipLabel:"Students lost focus",tip:"Watch for fidgeting. Shorten the interaction and return to the story.",tipShort:"Watch for fidgeting and return to story quickly",tags:["lost-focus"]},
+  "Repeated instructions or questions too much":{why:"Repeating too much slows the lesson pace.",tipLabel:"Too much repetition",tip:"State instructions once clearly, then use a gesture as a reminder.",tipShort:"State instructions once; use gestures as reminders",tags:["repetition"]},
+  "Hard to get back to story":{why:"Rocky transitions cause students to lose the narrative thread.",tipLabel:"Hard to resume",tip:"Use: 'Let's find out what happens next…' to smoothly return.",tipShort:"Use 'Let's find out what happens next…' to resume",tags:["resume"]},
+  "Could connect better to story":{why:"After-reading activities need to connect directly to the story.",tipLabel:"Weak story connection",tip:"Ask students to recall a specific moment, then connect to the discussion.",tipShort:"Start after-reading with a specific story moment recall",tags:["after-connect"]},
+  "Didn't help understanding":{why:"Post-reading should deepen understanding, not just fill time.",tipLabel:"Didn't help understanding",tip:"Choose one clear comprehension goal for after reading.",tipShort:"Set one clear comprehension goal for after-reading",tags:["after-understand"]},
+  "Students seem confused":{why:"Confused students signal the activity was too complex or instructions unclear.",tipLabel:"Students confused",tip:"Model the activity first: 'Watch me, then you try.' Keep to 2 steps.",tipShort:"Model the activity first, keep instructions to 2 steps",tags:["after-confused"]},
+  "Class took too long to settle":{why:"Long settling time eats into reading time.",tipLabel:"Slow settling",tip:"Establish a consistent start routine. Predictability speeds settling.",tipShort:"Establish a consistent start routine for faster settling",tags:["settle"]},
+  "Some students remained off-task":{why:"Off-task students miss learning and can distract others.",tipLabel:"Off-task students",tip:"Use proximity — move closer. Eye contact or a gentle desk touch works.",tipShort:"Use proximity and eye contact to redirect",tags:["off-task"]},
+  "Seating was tricky":{why:"Poor seating creates barriers that affect every lesson.",tipLabel:"Seating issues",tip:"Use a U-shape or semi-circle so everyone can see.",tipShort:"Use U-shape or semi-circle seating",tags:["seating"]},
+  "Hard to manage noise":{why:"High noise prevents students from hearing the story.",tipLabel:"Noise management",tip:"Use a consistent signal (hand raise, bell) rather than raising your voice.",tipShort:"Use a consistent quiet signal",tags:["noise"]},
+  "Hard to keep positive":{why:"A negative atmosphere makes students afraid to participate.",tipLabel:"Positivity challenge",tip:"Focus on what students ARE doing right. Praise works better than correcting.",tipShort:"Praise what students are doing right",tags:["positive"]},
+  "Some students could not see well":{why:"Students who can't see miss visual storytelling cues.",tipLabel:"Limited visibility",tip:"Hold the book high and slowly sweep across the group.",tipShort:"Hold book high, sweep slowly across the group",tags:["visibility"]},
+  "Didn't show all pictures to all students":{why:"Pictures are essential for comprehension, especially for early readers.",tipLabel:"Pictures not shown",tip:"After each page, pause and slowly show the illustration to all sides.",tipShort:"Pause after each page to show illustrations to all",tags:["pictures"]},
+  "Seating made it hard":{why:"Poor seating creates visibility barriers.",tipLabel:"Seating issues",tip:"Use a U-shape or semi-circle for read alouds.",tipShort:"Use U-shape or semi-circle seating",tags:["seating"]},
+  "Instructions unclear":{why:"Unclear instructions lead to confusion and off-task behavior.",tipLabel:"Unclear instructions",tip:"Give instructions in 2 short steps. Check: 'What are you going to do?'",tipShort:"Give max 2 instruction steps; check understanding",tags:["instructions"]},
+  "Could ask more questions":{why:"More questions create more opportunities for engagement.",tipLabel:"More questions needed",tip:"Plan 3–4 questions before the lesson. Mix recall, connect, evaluate.",tipShort:"Plan 3–4 mixed-type questions before each lesson",tags:["more-questions"]},
+  "Classroom management can be improved":{why:"Effective management is the foundation for learning.",tipLabel:"Management needs work",tip:"Establish 2–3 simple, positive routines. Praise students following them.",tipShort:"Establish 2–3 positive routines and praise compliance",tags:["management"]},
+  "Could pay more attention to students":{why:"When teachers don't monitor, they miss confusion or disengagement.",tipLabel:"More student attention",tip:"Scan the room regularly. Make eye contact with different sections.",tipShort:"Scan the room regularly; eye contact with all sections",tags:["attention"]},
+  "Could redirect sooner":{why:"Delayed redirection allows off-task behavior to spread.",tipLabel:"Slow to redirect",tip:"Use non-verbal cues first (eye contact, proximity).",tipShort:"Redirect early with non-verbal cues",tags:["redirect"]},
+  "Used a tone that discouraged participation":{why:"A harsh tone makes students afraid to participate.",tipLabel:"Discouraging tone",tip:"Pause before responding. 'That's an interesting idea' goes a long way.",tipShort:"Use warm, encouraging language",tags:["tone"]},
+  "Appeared stressed or impatient":{why:"Students pick up on stress, reducing willingness to participate.",tipLabel:"Stressed/impatient",tip:"Take one slow breath when feeling rushed. Students won't notice.",tipShort:"Take one slow breath when feeling rushed",tags:["stress"]},
+  "Could give more time for thinking":{why:"Without wait time, only the fastest thinkers respond.",tipLabel:"Not enough think time",tip:"Count silently to 5 after asking before calling on anyone.",tipShort:"Count to 5 after asking before calling on anyone",tags:["wait-time"]},
+  "Teacher answered his/her own questions":{why:"When teachers answer their own questions, students learn to wait.",tipLabel:"Answered own questions",tip:"Rephrase or give a hint instead of answering.",tipShort:"Rephrase or give hints instead of answering",tags:["self-answer"]},
+  "Teacher answered her/his own questions":{why:"When teachers answer their own questions, students learn to wait.",tipLabel:"Answered own questions",tip:"Rephrase or give a hint instead of answering.",tipShort:"Rephrase or give hints instead of answering",tags:["self-answer"]},
+  "Only the fastest students participated":{why:"When only fast responders are called on, most don't engage.",tipLabel:"Only fast students",tip:"Use think-pair-share: everyone thinks, tells a partner, then share.",tipShort:"Use think-pair-share so all students engage",tags:["fast-only"]},
+  "Teacher rushed the discussion or skipped responses":{why:"Rushing signals student contributions aren't valued.",tipLabel:"Rushed discussion",tip:"Acknowledge each response: 'Thank you for sharing that.'",tipShort:"Acknowledge each response briefly",tags:["rushed"]},
+  "Limited or no open-ended questions":{why:"Without open-ended questions, students only practice recall.",tipLabel:"No open-ended questions",tip:"Try 'Why do you think…?' or 'What would you do if…?'",tipShort:"Ask one 'Why do you think…?' question per session",tags:["open-ended"]},
+  "Limited or no follow-up questions":{why:"Without follow-ups, deeper thinking opportunity is lost.",tipLabel:"No follow-ups",tip:"After a student answers: 'Tell me more' or 'Why do you think so?'",tipShort:"Follow up with 'Tell me more' or 'Why do you think so?'",tags:["follow-up"]},
+  "Favored certain answers over others":{why:"Students learn to guess what the teacher wants rather than think.",tipLabel:"Favored answers",tip:"Respond equally: 'Interesting idea!' Then ask 'Does anyone see it differently?'",tipShort:"Respond equally; ask 'Does anyone see it differently?'",tags:["favored"]},
+  "Student responses were judged as right or wrong":{why:"Judging responses shuts down creative thinking.",tipLabel:"Judged responses",tip:"Replace 'That's wrong' with 'That's one way to think about it — what else?'",tipShort:"Replace judgment with 'That's one way to think about it'",tags:["judged"]},
+  "Only a few spoke":{why:"When only a few talk, most miss the chance to process their thinking.",tipLabel:"Few speakers",tip:"Use cold calling or partner discussions before whole-group sharing.",tipShort:"Use cold calling or partner discussions for more voices",tags:["few-spoke"]},
+  "Quiet students were less involved":{why:"Quiet students often have rich ideas but need more support to share.",tipLabel:"Quiet students excluded",tip:"Let quiet students share with a partner first or write their answer.",tipShort:"Let quiet students share with a partner first",tags:["quiet"]},
+  "Moved too quickly":{why:"Moving too fast means some students never participate meaningfully.",tipLabel:"Moved too quickly",tip:"Ask 'Who hasn't shared yet?' at key discussion moments.",tipShort:"Ask 'Who hasn't shared yet?' at key moments",tags:["too-fast"]},
+  "Could be more supportive":{why:"Students need encouragement to take risks in sharing their ideas.",tipLabel:"More support needed",tip:"Acknowledge effort: 'I love that you tried!' builds confidence.",tipShort:"Acknowledge effort: 'I love that you tried!'",tags:["supportive"]},
+  "Could be more open to different ideas":{why:"Accepting diverse ideas builds a classroom where all students feel valued.",tipLabel:"More openness",tip:"When a surprising answer comes, say 'That's a different way to think about it!'",tipShort:"Welcome surprising answers with curiosity",tags:["openness"]},
+  "Could do more to check understanding":{why:"Without checking, teachers don't know if students actually understood.",tipLabel:"Check understanding",tip:"Use quick checks: thumbs up/down, turn-and-tell, or 'show me with fingers.'",tipShort:"Use quick checks: thumbs up/down or turn-and-tell",tags:["check"]},
+  "Goals not fully met":{why:"When goals aren't met, the lesson's learning potential is reduced.",tipLabel:"Goals not met",tip:"Before the lesson, write: 'After this, students will…' Keep checking.",tipShort:"Write one clear goal and check against it",tags:["goals"]},
+  "Activities did not clearly support goals or story":{why:"Activities that don't connect to the goal use time without building understanding.",tipLabel:"Activities misaligned",tip:"For each activity, ask: 'How does this help students understand?'",tipShort:"Ask 'How does this help students understand?' for each activity",tags:["misaligned"]},
+  "Some parts were rushed":{why:"Rushing through key moments means students don't process or respond.",tipLabel:"Parts rushed",tip:"Identify the most important moment and protect time for it.",tipShort:"Protect time for the most important moment",tags:["rushed-parts"]},
+  "Some parts took too long":{why:"Spending too long on one part leaves less time for others.",tipLabel:"Parts too long",tip:"Set a mental time limit for each section.",tipShort:"Set mental time limits for each lesson section",tags:["too-long"]},
+  "Flow wasn't smooth":{why:"Choppy transitions disrupt engagement.",tipLabel:"Poor flow",tip:"Use transition phrases: 'Now that we've read, let's think about…'",tipShort:"Use transition phrases and practice lesson flow",tags:["flow"]}
+};
+
+// focusContent keyed by indicator ID — all 13 indicators have focus pathways
+const focusContent={
+  1:{label:"Before-Reading Engagement",short:"Before-reading engagement",full:"#1. Engaged children before reading",
+    whyGeneral:"Before-reading engagement prepares students to listen with purpose. It activates background knowledge, builds anticipation, and helps students connect personally to the story.",
+    ask:"\u201CHow did you prepare students before reading today? What did you notice about their response?\u201D",
+    whyShort:"Preparing students before reading activates knowledge and builds anticipation.",
+    book:"<strong>For \u201CThe Clever Rabbit\u201D:</strong><br>\u201CHave you ever seen a rabbit? What do you know about them?\u201D<br>\u201CLook at the cover \u2014 what do you think might happen?\u201D<br>\u201CThe title says \u2018clever\u2019 \u2014 what does that mean?\u201D",
+    video:"Video: Engaging students before reading",
+    challenges:[
+      {q:"\u201CI don\u2019t have time\u201D",a:"Even 2 minutes helps. One question + one prediction = students are ready.",overlaps:["skipped"]},
+      {q:"\u201CStudents don\u2019t respond\u201D",a:"Start with something concrete: show the cover, ask what they see. Build from there.",overlaps:["participate"]},
+      {q:"\u201CI\u2019m not sure what to ask\u201D",a:"Three reliable starters: predict from cover, connect to experience, introduce key vocabulary.",overlaps:["unclear"]},
+      {q:"\u201CIt feels repetitive\u201D",a:"Vary your approach: sometimes predict, sometimes connect to real life, sometimes explore cover art.",overlaps:[]},
+      {q:"\u201CStudents get too excited\u201D",a:"Channel energy with a focus question: \u2018Listen for\u2026\u2019 gives them a purpose.",overlaps:[]}
+    ]
+  },
+  2:{label:"Clear Pace & Reading",short:"Clear pace & reading",full:"#2. Reads aloud clearly at appropriate pace",
+    whyGeneral:"Clear, well-paced reading is the foundation of a good read aloud. When students can hear and follow along easily, they can focus on meaning rather than struggling to catch words.",
+    ask:"\u201CHow did you feel about the pace and clarity of your reading today?\u201D",
+    whyShort:"Clear, well-paced reading lets students focus on meaning rather than struggling to follow.",
+    book:"<strong>For \u201CThe Clever Rabbit\u201D:</strong><br>Speed up slightly during the chase scene<br>Slow down when the rabbit is thinking<br>Normal pace for narration \u2014 clear and steady",
+    video:"Video: Reading with good pace and clarity",
+    challenges:[
+      {q:"\u201CI read too fast when nervous\u201D",a:"Practice the book once beforehand. Familiarity naturally slows your pace.",overlaps:["fast"]},
+      {q:"\u201CIt\u2019s hard to project\u201D",a:"Read to the student at the back of the room. If they can hear, everyone can.",overlaps:["volume"]},
+      {q:"\u201CI\u2019m not sure what pace is right\u201D",a:"Watch students\u2019 faces. If confused, slow down. If distracted, you may be too slow.",overlaps:["pace"]},
+      {q:"\u201CThe classroom is noisy\u201D",a:"Pause and wait for quiet before continuing. A whisper can be more effective than speaking louder.",overlaps:[]},
+      {q:"\u201CStudents lose track\u201D",a:"Pause at key moments to let students process. A 2-second pause after important events helps.",overlaps:[]}
+    ]
+  },
+  3:{label:"Expressive Reading",short:"Expressive reading",full:"#3. Reads aloud expressively",
+    whyGeneral:"When teachers read expressively \u2014 varying tone, using gestures, making eye contact \u2014 it brings the story to life. Students understand more deeply, stay more engaged, and begin to model fluent reading themselves.",
+    ask:"\u201CHow did you feel about bringing the story to life through your voice and expression?\u201D",
+    whyShort:"Expressive reading helps students understand the story more deeply and keeps them engaged.",
+    book:"<strong>\ud83c\udfad Voices:</strong> Rabbit \u2014 quick, light, clever. Tiger \u2014 slow, deep, growly.<br><br><strong>\ud83c\udfac Moments:</strong> The chase (speed up) \u00b7 The trick (slow, sly) \u00b7 The ending (calm)<br><br><strong>\ud83d\udcac Discussion:</strong> \u201CWas the rabbit right to trick the tiger?\u201D",
+    video:"Video: Reading with expression \u2014 watch together",
+    challenges:[
+      {q:"\u201CI feel self-conscious\u201D",a:"Start with one character voice or one louder/softer moment. Kids respond positively.",overlaps:["gestures"]},
+      {q:"\u201CI forget when focused on words\u201D",a:"Read the book once beforehand \u2014 familiarity frees you to focus on expression.",overlaps:["monotone"]},
+      {q:"\u201CI don\u2019t know how to make it engaging\u201D",a:"Pick just 2\u20133 moments to change your voice: a character speaking, a surprise, a mood shift.",overlaps:["mood"]},
+      {q:"\u201CStudents don\u2019t seem to notice\u201D",a:"Children notice more than we think. Try asking \u201CHow did that part sound?\u201D after a dramatic moment.",overlaps:[]},
+      {q:"\u201CI run out of energy halfway\u201D",a:"Save expression for 2\u20133 key moments rather than the whole book. Quality over quantity.",overlaps:[]}
+    ]
+  },
+  4:{label:"Reading Interactions",short:"Reading interactions",full:"#4. Short interactions during reading",
+    whyGeneral:"Brief, well-placed interactions during reading help students build vocabulary, check understanding, and stay connected to the story as it unfolds.",
+    ask:"\u201CDid you plan any interaction points during reading today? How did they go?\u201D",
+    whyShort:"Short interactions during reading help students understand vocabulary and stay connected.",
+    book:"<strong>For \u201CThe Clever Rabbit\u201D:</strong><br>After page 2: \u201CWhat do you think \u2018clever\u2019 means?\u201D<br>After the chase: \u201CWhat do you think will happen next?\u201D<br>Show a picture: \u201CHow does the rabbit look here?\u201D",
+    video:"Video: Supporting comprehension during reading",
+    challenges:[
+      {q:"\u201CI forget to stop\u201D",a:"Put a small sticky note on 2\u20133 pages where you want to pause and interact.",overlaps:[]},
+      {q:"\u201CIt breaks the story\u201D",a:"Keep interactions to 15\u201330 seconds. One quick question, 2\u20133 responses, then continue.",overlaps:["off-topic"]},
+      {q:"\u201CStudents get distracted\u201D",a:"Keep it short and directly connected to what just happened. \u2018Did you see that?\u2019 works well.",overlaps:["not-helpful"]},
+      {q:"\u201CI\u2019m not sure what to say\u201D",a:"Three easy types: explain a word, ask a prediction, point to a picture detail.",overlaps:[]},
+      {q:"\u201CIt takes too long\u201D",a:"Set a mental timer: 30 seconds max, then say \u2018Let\u2019s find out what happens next.\u2019",overlaps:[]}
+    ]
+  },
+  5:{label:"Story Flow",short:"Story flow",full:"#5. Kept interactions short for smooth flow",
+    whyGeneral:"When interactions during reading are too long or too frequent, students lose the narrative thread. Keeping them brief preserves the story\u2019s momentum and student engagement.",
+    ask:"\u201CHow did you feel about the balance between reading and stopping to talk?\u201D",
+    whyShort:"Brief interactions preserve the story\u2019s momentum and keep students engaged.",
+    book:"<strong>For \u201CThe Clever Rabbit\u201D:</strong><br>The chase sequence should flow uninterrupted<br>Save longer discussion for after reading<br>One word explanation or quick prediction is enough during reading",
+    video:"Video: Balancing interaction and story flow",
+    challenges:[
+      {q:"\u201CI talk too much during reading\u201D",a:"Practice the 30-second rule: pause, one quick question, 2 responses, back to reading.",overlaps:["talked-long"]},
+      {q:"\u201CStudents want to keep talking\u201D",a:"Acknowledge and redirect: \u2018Great thought \u2014 hold it for after we finish!\u2019",overlaps:["lost-focus"]},
+      {q:"\u201CI lose my place\u201D",a:"Keep your finger on the line. Use a sticky note to mark where you\u2019ll resume.",overlaps:["resume"]},
+      {q:"\u201CI\u2019m not sure when to stop\u201D",a:"Plan 2\u20133 stopping points before the lesson. Mark them with sticky notes.",overlaps:["pauses"]},
+      {q:"\u201CIt feels disjointed\u201D",a:"Use smooth transitions back: \u2018Let\u2019s see what happens next\u2026\u2019 keeps the flow.",overlaps:[]}
+    ]
+  },
+  6:{label:"After-Reading Activities",short:"After-reading activities",full:"#6. Questions/activities after reading",
+    whyGeneral:"After-reading activities help students process, reflect on, and extend their understanding. This is where deeper comprehension happens \u2014 moving from recall to connection to evaluation.",
+    ask:"\u201CWhat did you do after reading today? How did students respond?\u201D",
+    whyShort:"After-reading activities are where deeper comprehension and reflection happen.",
+    book:"<strong>For \u201CThe Clever Rabbit\u201D:</strong><br><strong>Recall:</strong> \u201CWhat did the rabbit do to escape?\u201D<br><strong>Connect:</strong> \u201CHave you ever been clever to solve a problem?\u201D<br><strong>Evaluate:</strong> \u201CWas it fair for the rabbit to trick the tiger?\u201D",
+    video:"Video: Effective after-reading activities",
+    challenges:[
+      {q:"\u201CI run out of time\u201D",a:"Plan your after-reading activity first, then work backward. Protect at least 5 minutes.",overlaps:["after-connect"]},
+      {q:"\u201CStudents only recall\u201D",a:"Bridge from recall: \u2018What happened?\u2019 \u2192 \u2018Why?\u2019 \u2192 \u2018Was that right?\u2019 builds naturally.",overlaps:["after-understand"]},
+      {q:"\u201CDiscussion falls flat\u201D",a:"Start with pair-share before whole group. Students are more confident after talking to a partner.",overlaps:["after-confused"]},
+      {q:"\u201CI\u2019m not sure what activity to use\u201D",a:"Discussion is simplest and most powerful. Ask 2\u20133 questions at different levels.",overlaps:[]},
+      {q:"\u201COnly a few respond\u201D",a:"Use think-pair-share or have everyone show thumbs up/down before calling on individuals.",overlaps:[]}
+    ]
+  },
+  7:{label:"Positive Environment",short:"Positive environment",full:"#7. Settled class and positive environment",
+    whyGeneral:"A settled, positive classroom is the foundation for all learning. When students feel safe and the environment is calm, they\u2019re ready to listen, think, and share.",
+    ask:"\u201CHow did you feel about the classroom atmosphere during the lesson?\u201D",
+    whyShort:"A calm, positive environment is the foundation for engagement and learning.",
+    book:"<strong>For \u201CThe Clever Rabbit\u201D:</strong><br>Start with a calming routine before opening the book<br>\u201CLet\u2019s all take a deep breath and get ready for a story\u201D<br>Use the book cover reveal as a settling moment",
+    video:"Video: Creating a positive read-aloud environment",
+    challenges:[
+      {q:"\u201CThe class is always energetic\u201D",a:"Channel energy: \u2018Show me your excited face! Now show me your listening face.\u2019 Then begin.",overlaps:["settle"]},
+      {q:"\u201CSome students won\u2019t settle\u201D",a:"Use proximity. Move close to unsettled students while continuing to read.",overlaps:["off-task"]},
+      {q:"\u201CI feel stressed about it\u201D",a:"A consistent routine reduces stress for everyone. Same start signal every time.",overlaps:["stress"]},
+      {q:"\u201CNoise levels are hard\u201D",a:"Use a signal (hand raise, bell) rather than raising your voice. Students mirror your energy.",overlaps:[]},
+      {q:"\u201CI struggle to stay positive\u201D",a:"Focus on what students ARE doing right. \u2018I love how Table 3 is ready\u2019 works better than correcting.",overlaps:[]}
+    ]
+  },
+  8:{label:"Book Visibility",short:"Book visibility",full:"#8. All children could see the book",
+    whyGeneral:"When all students can see the book and pictures, they access visual storytelling cues that support comprehension. Students who can\u2019t see disengage quickly.",
+    ask:"\u201CCould all your students see the book and pictures clearly today?\u201D",
+    whyShort:"Students who can see the book and pictures stay more engaged and understand more.",
+    book:"<strong>For \u201CThe Clever Rabbit\u201D:</strong><br>The illustrations show emotions the text doesn\u2019t describe<br>Slow sweeps of illustrations help all students access visual cues<br>Point to key details students might miss",
+    video:"Video: Making books visible to all students",
+    challenges:[
+      {q:"\u201CThe group is too large\u201D",a:"Hold the book higher and do slow sweeps. Consider reading to smaller groups if possible.",overlaps:["visibility"]},
+      {q:"\u201CSeating doesn\u2019t help\u201D",a:"Try a U-shape for read alouds. Students on the sides can see better than rows.",overlaps:["seating"]},
+      {q:"\u201CI forget to show pictures\u201D",a:"Make it a habit: read the page, then turn the book and slowly show the picture.",overlaps:["pictures"]},
+      {q:"\u201CThe book is too small\u201D",a:"Hold it high and sweep slowly. For very small books, consider walking around the group.",overlaps:[]},
+      {q:"\u201CStudents in the back complain\u201D",a:"Rotate seating so back-row students sit closer next time, or have them come forward.",overlaps:[]}
+    ]
+  },
+  9:{label:"Student Attention",short:"Student attention",full:"#9. Maintains student attention throughout",
+    whyGeneral:"Maintaining student attention ensures every child is learning throughout the lesson. When attention drops, so does comprehension and engagement.",
+    ask:"\u201CWere there moments when students seemed less engaged? What was happening?\u201D",
+    whyShort:"When attention drops, so does comprehension and engagement.",
+    book:"<strong>For \u201CThe Clever Rabbit\u201D:</strong><br>Use suspense at the chase scene to recapture attention<br>\u201CWhat do you think happens next?\u201D re-engages wandering minds<br>Vary your voice to signal important moments",
+    video:"Video: Maintaining student engagement",
+    challenges:[
+      {q:"\u201CSome students zone out\u201D",a:"Change your voice or pause dramatically. A whisper can be more attention-getting than shouting.",overlaps:["redirect"]},
+      {q:"\u201CIt\u2019s hard to watch everyone\u201D",a:"Scan the room regularly. Make eye contact with different sections as you read.",overlaps:["management"]},
+      {q:"\u201CThe book didn\u2019t engage them\u201D",a:"Even less engaging books work with expressive reading and good questions. Delivery matters most.",overlaps:[]},
+      {q:"\u201CI lose them partway through\u201D",a:"Place an interaction point where you tend to lose them. A question re-engages.",overlaps:["instructions"]},
+      {q:"\u201CAttention varies by student\u201D",a:"Note who disengages and where. Use their names gently: \u2018What do you think, Minh?\u2019",overlaps:[]}
+    ]
+  },
+  10:{label:"Think Time",short:"Think time",full:"#10. Adequate thinking time",
+    whyGeneral:"When teachers give adequate think time (3\u20135 seconds), more students formulate responses, responses are higher quality, and quieter students get a chance to participate.",
+    ask:"\u201CAfter asking a question today, how long did you wait before calling on someone?\u201D",
+    whyShort:"More think time means more students respond, and responses are deeper.",
+    book:"<strong>For \u201CThe Clever Rabbit\u201D:</strong><br>After: \u201CWas the rabbit right to trick the tiger?\u201D \u2014 wait 5 seconds<br>Silence feels awkward but brains are working<br>Try: \u201CThink about it\u2026 [pause]\u2026 now tell your partner\u201D",
+    video:"Video: The power of wait time",
+    challenges:[
+      {q:"\u201CSilence feels awkward\u201D",a:"Reframe it: silence means thinking is happening. Count to 5 in your head.",overlaps:["wait-time"]},
+      {q:"\u201CFast students blurt out\u201D",a:"Establish a \u2018think time\u2019 signal: \u201CEveryone think first, I\u2019ll ask in a moment.\u201D",overlaps:["fast-only"]},
+      {q:"\u201CI answer my own questions\u201D",a:"Catch yourself and rephrase instead: \u2018Let me ask that differently\u2026\u2019",overlaps:["self-answer"]},
+      {q:"\u201CI\u2019m running out of time\u201D",a:"Better to ask fewer questions with think time than many questions without it.",overlaps:["rushed"]},
+      {q:"\u201CSome students still don\u2019t respond\u201D",a:"Use pair-share: everyone tells a partner, then you invite responses. Less pressure.",overlaps:[]}
+    ]
+  },
+  11:{label:"Open-Ended Questions",short:"Open-ended questions",full:"#11. Open-ended questions & valuing ideas",
+    whyGeneral:"Open-ended questions push students beyond recall into reasoning, evaluating, and connecting. When all ideas are valued without judgment, students develop confidence to think independently.",
+    ask:"\u201CWhat kinds of questions did you ask today? How did students respond?\u201D",
+    whyShort:"Open-ended questions build reasoning, and valuing all ideas builds student confidence.",
+    book:"<strong>\ud83d\udcac Open-ended for this book:</strong><br>\u201CWas the rabbit right to trick the tiger? Why?\u201D<br>\u201CWhat would you have done?\u201D<br>\u201CHow did the tiger feel at the end?\u201D<br><br><strong>\ud83d\udd04 Turn recall \u2192 open:</strong><br>\u201CWhat happened?\u201D \u2192 \u201CWhy do you think that happened?\u201D",
+    video:"Video: Asking open-ended questions",
+    challenges:[
+      {q:"\u201CI\u2019m not sure what open-ended means\u201D",a:"More than one right answer. \u2018What color?\u2019 (closed) vs. \u2018Was the rabbit right?\u2019 (open).",overlaps:["open-ended"]},
+      {q:"\u201CI don\u2019t have time\u201D",a:"Even 1\u20132 open questions at the end make a big difference. Pre-plan them.",overlaps:[]},
+      {q:"\u201CStudents don\u2019t respond\u201D",a:"Scaffold: \u2018Was the rabbit brave, or just lucky?\u2019 Giving options helps students start.",overlaps:["follow-up"]},
+      {q:"\u201CI\u2019m not sure when to ask them\u201D",a:"After reading is the natural moment. Pause, close the book, and ask one big question.",overlaps:[]},
+      {q:"\u201COnly a few participate\u201D",a:"Use think-pair-share: everyone thinks, tells a partner, then volunteers share.",overlaps:[]}
+    ]
+  },
+  12:{label:"Participation For All",short:"Participation for all",full:"#12. All children participate",
+    whyGeneral:"When all students participate, all students learn. Inclusive participation strategies ensure that quiet, shy, or struggling students aren\u2019t left out of the learning process.",
+    ask:"\u201CWho participated most today? Who participated least? Why do you think that is?\u201D",
+    whyShort:"All students learn when all students participate, not just the confident ones.",
+    book:"<strong>For \u201CThe Clever Rabbit\u201D:</strong><br>Pair-share: \u201CTell your partner what you think the rabbit should do\u201D<br>Use a mix: whole-group, pair, individual responses<br>\u201CWho hasn\u2019t shared yet?\u201D invites new voices",
+    video:"Video: Including all students in discussion",
+    challenges:[
+      {q:"\u201CQuiet students won\u2019t talk\u201D",a:"Let them share with a partner first. Some prefer writing or drawing their answer.",overlaps:["quiet"]},
+      {q:"\u201CThe same students always talk\u201D",a:"Use \u2018hands down\u2019 cold calling or partner discussions before whole-group sharing.",overlaps:["few-spoke"]},
+      {q:"\u201CI move too quickly\u201D",a:"Slow down at key discussion moments. Ask \u2018Who hasn\u2019t shared yet?\u2019 to invite new voices.",overlaps:["too-fast"]},
+      {q:"\u201CSome students seem shy\u201D",a:"Pair-share first reduces pressure. Or let shy students show answers (thumbs up/down).",overlaps:[]},
+      {q:"\u201CI\u2019m not sure who participated\u201D",a:"Mentally track: left side, right side, back. Rotate your attention each lesson.",overlaps:[]}
+    ]
+  },
+  13:{label:"Instructional Skill",short:"Instructional skill",full:"#13. Skillfully used instructional practices",
+    whyGeneral:"Effective instruction requires thoughtfully chosen activities, questions, and prompts that work together to achieve lesson goals. When these align, students make meaningful progress.",
+    ask:"\u201CWhat was your main goal for this lesson? Do you feel it was achieved?\u201D",
+    whyShort:"Well-chosen activities, questions, and prompts help students achieve lesson goals.",
+    book:"<strong>For \u201CThe Clever Rabbit\u201D:</strong><br>Goal might be: understand character motivation<br>Activities should build toward that: predict \u2192 read \u2192 discuss<br>Check: \u201CCan students explain why the rabbit tricked the tiger?\u201D",
+    video:"Video: Aligning activities with lesson goals",
+    challenges:[
+      {q:"\u201CI\u2019m not sure what my goal was\u201D",a:"Before the lesson, write one sentence: \u2018After this, students will\u2026\u2019 That\u2019s your goal.",overlaps:["goals"]},
+      {q:"\u201CActivities didn\u2019t connect\u201D",a:"For each activity, ask yourself: \u2018How does this help students understand the story or meet my goal?\u2019",overlaps:["misaligned"]},
+      {q:"\u201CSome parts were rushed\u201D",a:"Identify the most important moment and protect time for it. Cut something less important if needed.",overlaps:["rushed-parts"]},
+      {q:"\u201CThe lesson didn\u2019t flow\u201D",a:"Use simple transitions: \u2018Now that we\u2019ve read, let\u2019s think about\u2026\u2019 Practice the flow beforehand.",overlaps:["flow"]},
+      {q:"\u201CI ran out of time\u201D",a:"Plan backward from the end: what MUST happen? Start there and add extras if time allows.",overlaps:[]}
+    ]
+  }
+};
+
+// R/C/E question variety — special focus option always available
+focusContent.questiontypes={label:"Question Variety (R/C/E)",short:"Question variety",full:"Question variety (R/C/E)",
+  whyGeneral:"Using recall, connect, and evaluate questions helps students build comprehension at all levels \u2014 memory, personal connection, and critical thinking.",
+  ask:"\u201CWhat kinds of questions do you usually ask after reading? What feels easiest? Hardest?\u201D",
+  whyShort:"A balance of question types develops recall, personal connection, and critical thinking.",
+  book:"<strong>For \u201CThe Clever Rabbit\u201D:</strong><br><strong>Recall:</strong> \u201CWhat did the rabbit do to escape?\u201D<br><strong>Connect:</strong> \u201CHave you ever been clever to solve a problem?\u201D<br><strong>Evaluate:</strong> \u201CWas it fair for the rabbit to trick the tiger?\u201D",
+  video:"Video: Using different question types",
+  challenges:[
+    {q:"\u201CConnect/evaluate feel hard\u201D",a:"Start with connect: \u201CHas something like this happened to you?\u201D Evaluate follows naturally.",overlaps:["connect","evaluate"]},
+    {q:"\u201CStudents struggle to answer\u201D",a:"Model first: \u201CI think the rabbit was clever because\u2026 What do you think?\u201D",overlaps:[]},
+    {q:"\u201CI forget to vary my questions\u201D",a:"Sticky note on the book: R-C-E. Pre-write one of each before the lesson.",overlaps:["recall","vary"]},
+    {q:"\u201CRecall questions feel safest\u201D",a:"They are! Use them as a bridge: \u201CWhat happened?\u201D \u2192 \u201CWhy do you think that happened?\u201D",overlaps:[]},
+    {q:"\u201CI\u2019m not sure students understand\u201D",a:"Try giving an example answer first, then ask \u201CWhat about you?\u201D Scaffolding builds confidence.",overlaps:[]}
+  ]
+};
+subIndicators.questiontypes=["Only recall questions were asked","No connect questions (linking story to students' lives)","No evaluate questions (judging characters' choices)","Other"];
+subIndDetails["Only recall questions were asked"]={why:"Recall questions check memory but don\u2019t build deeper comprehension.",tipLabel:"Only recall questions",tip:"Plan one of each type: Recall, Connect, Evaluate before the lesson.",tipShort:"Plan one recall, one connect, one evaluate question",tags:["recall","vary"]};
+subIndDetails["No connect questions (linking story to students' lives)"]={why:"Connect questions help students see reading as relevant to their lives.",tipLabel:"No connect questions",tip:"Try: \u201CHas something like this ever happened to you?\u201D",tipShort:"Ask \u201CHas something like this happened to you?\u201D",tags:["connect"]};
+subIndDetails["No evaluate questions (judging characters' choices)"]={why:"Evaluate questions develop critical thinking \u2014 judging, reasoning about fairness.",tipLabel:"No evaluate questions",tip:"\u201CWas [character] right to do that? Why or why not?\u201D works for any story.",tipShort:"Ask one \u201CWas [character] right?\u201D question per session",tags:["evaluate"]};
+
+function buildScreen2(){
+  // Sort indicators by priority area for display
+  const sorted=[...indicators].sort((a,b)=>a.priority-b.priority);
+  const strengths=[],working=[];
+  sorted.forEach(ind=>{
+    if(ratings[ind.id]==='yes') strengths.push(ind);
+    else if(ratings[ind.id]==='no') working.push(ind);
+  });
+
+  const body=document.getElementById('snapshotBody');
+  let html='<div class="snapshot-section"><div class="snapshot-section-label" style="color:var(--green)">\u2705 Strengths today</div><div>';
+  if(strengths.length===0) html+='<span style="font-size:12px;color:var(--g600)">No indicators marked Yes yet</span>';
+  else strengths.slice(0,2).forEach(s=>{html+='<span class="snapshot-pill pill-green">'+s.short+'</span>'});
+  html+='</div></div>';
+  if(working.length>0){
+    html+='<div class="snapshot-section"><div class="snapshot-section-label" style="color:var(--orange)">\ud83c\udf31 Today\u2019s areas for growth</div><div>';
+    working.slice(0,2).forEach(w=>{const fc=focusContent[w.id];html+='<span class="snapshot-pill pill-orange">'+(fc?fc.short:w.short)+'</span>'});
+    html+='</div></div>';
+  }
+  body.innerHTML=html;
+
+  // Build focus cards — top 2 highest-priority "Still Working" + R/C/E
+  const fc=document.getElementById('focusCards');
+  let cards='';
+
+  const top2=working.slice(0,2);
+  if(top2.length>0){
+    cards+='<div style="font-size:10px;font-weight:700;color:var(--g600);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Based on today</div>';
+    top2.forEach((w,i)=>{
+      const fcd=focusContent[w.id];
+      if(!fcd) return;
+      const tags=i===0?['<span class="prio-tag prio-tag-rec">\u2b50 Recommended</span>']:[];
+      cards+='<div class="priority-card" onclick="selectPriority(this,'+w.id+')"><div class="prio-radio"></div><div class="prio-title">'+fcd.full+'</div><div class="prio-sub">'+fcd.whyShort+'</div>'+tags.join('')+'</div>';
+    });
+  }
+
+  // Always show R/C/E option
+  cards+='<div style="font-size:10px;font-weight:700;color:var(--g600);margin:'+(top2.length>0?'12':'0')+'px 0 6px;text-transform:uppercase;letter-spacing:.5px">Based on question trends</div>';
+  cards+='<div class="priority-card" onclick="selectPriority(this,\'questiontypes\')"><div class="prio-radio"></div><div class="prio-title">Question variety (R/C/E)</div><div class="prio-sub">Asking a variety of question types (recall, connect, evaluate) across sessions</div><span class="prio-tag prio-tag-pattern">\ud83d\udcca Recurring pattern</span></div>';
+
+  fc.innerHTML=cards;
+  selectedPriority=null;
+}
+
+function buildPositives(){
+  // Pick strengths for positive conversation steps
+  const strengths=indicators.filter(ind=>ratings[ind.id]==='yes');
+  const s1=document.getElementById('s5_positive_start');
+  const s3=document.getElementById('s5_positive_end');
+
+  if(strengths.length===0){
+    s1.innerHTML='<div style="font-size:12px;color:var(--g600)">Reference something specific you appreciated during the observation.</div>';
+    s3.innerHTML='<div style="font-size:12px;color:var(--g600)">End by reinforcing something positive you observed.</div>';
+    return;
+  }
+
+  // First 1-2 strengths for start
+  const startItems=strengths.slice(0,2);
+  let startHtml='';
+  startItems.forEach(s=>{
+    startHtml+='<div style="display:flex;gap:8px;margin-bottom:6px"><span style="color:var(--green);font-size:14px">\u25cf</span><span>'+s.desc+'</span></div>';
+  });
+  startHtml+='<div style="background:var(--green-light);border-radius:16px 16px 16px 4px;padding:10px 14px;font-size:12px;font-style:italic;color:#1B5E20;line-height:1.5">\u201C'+positivePhrases[startItems[0].id]+'\u201D</div>';
+  s1.innerHTML=startHtml;
+
+  // Last strength(s) for end
+  const endItem=strengths.length>2?strengths[strengths.length-1]:strengths[strengths.length>1?1:0];
+  let endHtml='<div style="display:flex;gap:8px;margin-bottom:8px"><span style="color:var(--green);font-size:14px">\u25cf</span><span>'+endItem.desc+'</span></div>';
+  endHtml+='<div style="background:var(--green-light);border-radius:16px 16px 16px 4px;padding:10px 14px;font-size:12px;font-style:italic;color:#1B5E20;line-height:1.5">\u201C'+positivePhrases[endItem.id]+'\u201D</div>';
+  s3.innerHTML=endHtml;
+}
+
+// ── Core navigation ──
+
+function nextScreen(){
+  if(currentScreen>=totalScreens)return;
+  if(currentScreen===1){
+    // Validate at least some ratings
+    const rated=Object.keys(ratings).length;
+    if(rated<5){showToast('Please rate more indicators');return}
+    showLoading('Analyzing observation...');
+    setTimeout(()=>{hideLoading();buildScreen2();goToScreen(2)},1500);
+    return;
+  }
+  if(currentScreen===2){if(!selectedPriority){showToast('Please select a focus area');return}populateSubInds();goToScreen(3);return}
+  if(currentScreen===3){
+    if(selectedSubInds.length===0){showToast('Select at least one observation');return}
+    if(selectedSubInds.includes('Other')&&!document.getElementById('s3_other_text').value.trim()){showToast('Please describe what you observed');return}
+    otherText=document.getElementById('s3_other_text').value.trim();
+    updateScreen4();updateScreen5();updateScreen6();goToScreen(4);return;
+  }
+  if(currentScreen===6){
+    const otherBox=document.getElementById('s6_other_box');
+    if(otherBox&&otherBox.style.display==='block'){
+      const txt=document.getElementById('s6_other_text');
+      if(!txt||!txt.value.trim()){showToast('Please describe the commitment');return}
+    }
+  }
+  goToScreen(currentScreen+1);
+}
+function goBack(){if(currentScreen>1)goToScreen(currentScreen-1)}
+function goToScreen(n){document.getElementById('screen'+currentScreen).classList.remove('active');currentScreen=n;document.getElementById('screen'+currentScreen).classList.add('active');updateUI();document.querySelector('.screen-container').scrollTop=0}
+function updateUI(){
+  document.getElementById('backBtn').classList.toggle('hidden',currentScreen===1);
+  const t=[['Coach Observation','Rate each indicator'],['Feedback Preparation','Review & pick focus'],['What Did You Notice?','Select observations'],['Why This Matters','Understanding the impact'],['Your Conversation','Plan & reference card'],['Record & Close','How did it go?'],['Done!','Session saved']];
+  document.getElementById('headerTitle').textContent=t[currentScreen-1][0];document.getElementById('headerSubtitle').textContent=t[currentScreen-1][1];
+  for(let i=1;i<=6;i++){const d=document.getElementById('dot'+i);d.classList.remove('active','completed');const e=Math.min(currentScreen,6);if(i===e)d.classList.add('active');else if(i<e){d.classList.add('completed');d.textContent='\u2713'}else d.textContent=i}
+  for(let i=1;i<=5;i++)document.getElementById('line'+i).classList.toggle('completed',i<Math.min(currentScreen,6));
+  const f=document.getElementById('stickyFooter'),b=document.getElementById('nextBtn');
+  if(currentScreen>=totalScreens){f.style.display='none'}
+  else{f.style.display='block';const l=['Continue \u2192','Continue \u2192','Continue \u2192','Prepare Conversation \u2192',"I\u2019ve Finished \u2192",'Submit \u2192'];b.textContent=l[currentScreen-1]||'Continue \u2192'}
+}
+
+function rate(btn,id,val){btn.parentElement.querySelectorAll('.rating-btn').forEach(b=>b.classList.remove('sel-yes','sel-no'));btn.classList.add(val==='yes'?'sel-yes':'sel-no');ratings[id]=val}
+function rceToggle(btn,type){rce[type]=!rce[type];btn.classList.toggle('sel-yes',rce[type]);btn.classList.remove('sel-no')}
+function selectPriority(card,id){document.querySelectorAll('.priority-card').forEach(c=>c.classList.remove('selected'));card.classList.add('selected');selectedPriority=id;selectedSubInds=[]}
+
+function populateSubInds(){
+  const fc=focusContent[selectedPriority],subs=subIndicators[selectedPriority]||[];
+  ['fb3_text','fb4_text','fb5_text','fb6_text'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=fc.full});
+  document.getElementById('s3_header').innerHTML='You marked <strong>\u201CNo / Partially\u201D</strong> for <strong>'+fc.label+'</strong>. What did you observe? Select up to 2.';
+  document.getElementById('s3_other_box').style.display='none';
+  const list=document.getElementById('s3_sublist');list.innerHTML='';
+  selectedSubInds=[];
+  subs.forEach(text=>{
+    const div=document.createElement('div');div.className='sub-ind-item';
+    div.innerHTML='<div class="sub-ind-check">\u2713</div><div class="sub-ind-text">'+text+'</div>';
+    div.onclick=function(){
+      const isOther=text==='Other';
+      if(this.classList.contains('checked')){
+        this.classList.remove('checked');selectedSubInds=selectedSubInds.filter(s=>s!==text);
+        if(isOther)document.getElementById('s3_other_box').style.display='none';
+      } else {
+        const nonOtherCount=selectedSubInds.filter(s=>s!=='Other').length;
+        if(!isOther&&nonOtherCount>=2){showToast('Maximum 2 selections');return}
+        this.classList.add('checked');selectedSubInds.push(text);
+        if(isOther)document.getElementById('s3_other_box').style.display='block';
+      }
+    };
+    list.appendChild(div);
+  });
+}
+
+function updateScreen4(){
+  const fc=focusContent[selectedPriority];
+  document.getElementById('s4_why').innerHTML=fc.whyGeneral;
+  document.getElementById('s4_video').textContent=fc.video;
+  const details=document.getElementById('s4_details');details.innerHTML='';
+  selectedSubInds.filter(s=>s!=='Other').forEach(sub=>{
+    const d=subIndDetails[sub];if(!d)return;
+    details.innerHTML+='<div class="why-detail"><div class="why-detail-label">\ud83d\udccc '+sub+'</div><div class="why-detail-text">'+d.why+'</div></div>';
+  });
+  if(selectedSubInds.includes('Other')&&otherText){
+    details.innerHTML+='<div class="why-detail"><div class="why-detail-label">\ud83d\udccc Other observation</div><div class="why-detail-text">'+otherText+'</div></div>';
+  }
+}
+
+function updateScreen5(){
+  const fc=focusContent[selectedPriority];
+  document.getElementById('s5_title').textContent='Discuss: '+fc.label;
+  document.getElementById('s5_whyshort').textContent=fc.whyShort;
+  document.getElementById('s5_ask').textContent=fc.ask;
+
+  const tipContainer=document.getElementById('s5_dynamic_tips');tipContainer.innerHTML='';
+  selectedSubInds.filter(s=>s!=='Other').forEach(sub=>{
+    const d=subIndDetails[sub];if(!d)return;
+    tipContainer.innerHTML+='<div class="tip-plain"><div class="tip-plain-label">'+d.tipLabel+'</div><div class="tip-plain-text">'+d.tip+'</div></div>';
+  });
+
+  // Collect all tags from selected sub-indicators
+  const activeTags=[];
+  selectedSubInds.filter(s=>s!=='Other').forEach(sub=>{
+    const d=subIndDetails[sub];
+    if(d&&d.tags) d.tags.forEach(t=>{if(!activeTags.includes(t))activeTags.push(t)});
+  });
+
+  // Filter challenges: prefer non-overlapping with tips, but always show at least 2
+  const nonOverlapping=fc.challenges.filter(ch=>{
+    if(!ch.overlaps||ch.overlaps.length===0) return true;
+    return !ch.overlaps.some(o=>activeTags.includes(o));
+  });
+
+  let filtered;
+  if(nonOverlapping.length>=2){
+    filtered=nonOverlapping.slice(0,3);
+  } else {
+    // Not enough non-overlapping — take what we have, then fill from all challenges
+    filtered=[...nonOverlapping];
+    fc.challenges.forEach(ch=>{
+      if(filtered.length<2 && !filtered.includes(ch)) filtered.push(ch);
+    });
+  }
+
+  const chEl=document.getElementById('s5_challenges');
+  chEl.innerHTML=filtered.map(ch=>'<div class="challenge-card"><div class="challenge-q">'+ch.q+'</div><div class="challenge-a">'+ch.a+'</div></div>').join('');
+
+  document.getElementById('s5_booktips').innerHTML=fc.book;
+  document.getElementById('s7_focus').textContent=fc.short;
+
+  buildPositives();
+}
+
+function updateScreen6(){
+  const commit=document.getElementById('s6_commit');commit.innerHTML='';
+  selectedSubInds.filter(s=>s!=='Other').forEach(sub=>{
+    const d=subIndDetails[sub];if(!d)return;
+    commit.innerHTML+='<div class="checklist-item" onclick="toggleCheck(this)"><div class="checklist-check">\u2713</div><div class="checklist-text">'+d.tipShort+'</div></div>';
+  });
+  commit.innerHTML+='<div class="checklist-item" onclick="toggleOtherCommit(this)"><div class="checklist-check">\u2713</div><div class="checklist-text">Other</div></div>';
+  commit.innerHTML+='<div id="s6_other_box" style="display:none;margin-top:4px;padding:0 4px"><div style="font-size:12px;font-weight:700;color:var(--orange);margin-bottom:6px">What did she commit to? <span style="color:#E53935">*</span></div><textarea class="notes-area" id="s6_other_text" placeholder="e.g., Will practice reading aloud with a colleague..." style="min-height:50px"></textarea></div>';
+}
+
+function toggleOtherCommit(el){
+  el.classList.toggle('checked');
+  document.getElementById('s6_other_box').style.display=el.classList.contains('checked')?'block':'none';
+}
+
+function selectLikert(el,val){
+  document.querySelectorAll('.likert-face').forEach(f=>f.classList.remove('selected'));
+  el.classList.add('selected');selectedLikert=val;
+}
+
+function togglePrompt(c){c.classList.toggle('expanded')}
+function toggleCheck(i){i.classList.toggle('checked')}
+function showLoading(msg){const b=document.getElementById('nextBtn');b.disabled=true;b.innerHTML='<span class="loading-dots"><span></span><span></span><span></span></span>';showToast(msg)}
+function hideLoading(){document.getElementById('nextBtn').disabled=false}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
+updateUI();
+</script>
+</body>
+</html>
